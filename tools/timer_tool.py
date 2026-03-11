@@ -13,13 +13,13 @@ from _common import get_db, db_query, db_exec, ok, err, parse_args
 
 
 def _register_openclaw_cron(name: str, cron_expr: str, message: str) -> bool:
-    """Register a cron job via openclaw CLI."""
+    """Register a recurring cron job via openclaw CLI."""
     try:
         result = subprocess.run(
             ["openclaw", "cron", "add",
              "--name", name,
              "--cron", cron_expr,
-             "--session", "current",
+             "--session", "main",
              "--message", message,
              "--announce"],
             capture_output=True, text=True
@@ -37,9 +37,10 @@ def _register_openclaw_cron_once(name: str, trigger_at: str, message: str) -> bo
             ["openclaw", "cron", "add",
              "--name", name,
              "--at", trigger_at,
-             "--session", "current",
+             "--session", "main",
              "--message", message,
-             "--announce"],
+             "--announce",
+             "--delete-after-run"],
             capture_output=True, text=True
         )
         return result.returncode == 0
@@ -151,7 +152,7 @@ def update_timer(args: dict):
         context = timer.get('context', '')
         message_text = timer.get('message') or (f"[SECRETARY_TIMER] {context}" if timer.get('timer_type') == 'heavy' else '')
         # Cancel old and re-add
-        subprocess.run(["openclaw", "cron", "remove", "--name", timer['name']], capture_output=True)
+        subprocess.run(["openclaw", "cron", "rm", "--name", timer['name']], capture_output=True)
         _register_openclaw_cron(timer['name'], fields['cron_expr'], message_text)
 
     ok({"timer_id": timer_id})
@@ -171,7 +172,7 @@ def cancel_timer(args: dict):
 
     # Remove from openclaw cron
     try:
-        subprocess.run(["openclaw", "cron", "remove", "--name", timer['name']], capture_output=True)
+        subprocess.run(["openclaw", "cron", "rm", "--name", timer['name']], capture_output=True)
     except FileNotFoundError:
         pass
 
