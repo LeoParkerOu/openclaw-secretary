@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secretary Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f7; color: #1d1d1f; }
+
+    /* ── Layout ── */
+    .app { display: grid; grid-template-rows: 56px 1fr 120px; grid-template-columns: 1fr 320px; min-height: 100vh; }
+    .topbar  { grid-column: 1 / -1; background: #fff; border-bottom: 1px solid #e5e5ea; display: flex; align-items: center; padding: 0 24px; gap: 20px; }
+    .main    { padding: 20px; overflow: auto; }
+    .sidebar { background: #fff; border-left: 1px solid #e5e5ea; padding: 16px; overflow: auto; }
+    .bottom  { grid-column: 1 / -1; background: #fff; border-top: 1px solid #e5e5ea; padding: 12px 24px; display: flex; gap: 24px; align-items: flex-start; }
+
+    /* ── Topbar ── */
+    .topbar h1  { font-size: 18px; font-weight: 600; color: #1d1d1f; }
+    .topbar .date { font-size: 14px; color: #6e6e73; }
+    .topbar .spacer { flex: 1; }
+    .topbar .dot { width: 8px; height: 8px; border-radius: 50%; background: #34c759; }
+    .topbar .status { font-size: 13px; color: #6e6e73; }
+    .view-toggle { display: flex; gap: 4px; }
+    .view-toggle button {
+      padding: 4px 12px; border: 1px solid #d1d1d6; background: #fff; border-radius: 6px;
+      font-size: 13px; cursor: pointer; color: #3a3a3c;
+    }
+    .view-toggle button.active { background: #0071e3; color: #fff; border-color: #0071e3; }
+
+    /* ── Calendar ── */
+    .calendar-wrap { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    #calendar { font-size: 13px; }
+    .fc-event { font-size: 12px; border-radius: 4px; padding: 1px 4px; }
+    .fc-event.type-event       { background: #0071e3; border-color: #0071e3; }
+    .fc-event.type-reminder    { background: #ff9f0a; border-color: #ff9f0a; }
+    .fc-event.type-special_date{ background: #34c759; border-color: #34c759; color: #fff; }
+
+    /* ── Sidebar ── */
+    .sidebar h2  { font-size: 14px; font-weight: 600; color: #6e6e73; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
+    .plan-card   { border: 1px solid #e5e5ea; border-radius: 10px; padding: 12px; margin-bottom: 10px; cursor: pointer; transition: box-shadow .15s; }
+    .plan-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .plan-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .plan-card .meta { font-size: 12px; color: #6e6e73; margin-bottom: 8px; }
+    .progress-bar { height: 4px; background: #e5e5ea; border-radius: 2px; overflow: hidden; }
+    .progress-bar .fill { height: 100%; background: #0071e3; border-radius: 2px; transition: width .3s; }
+
+    /* ── Plan detail modal ── */
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-bg.hidden { display: none; }
+    .modal { background: #fff; border-radius: 16px; width: 600px; max-height: 80vh; overflow: auto; padding: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+    .modal h2 { font-size: 18px; margin-bottom: 4px; }
+    .modal .goal { color: #6e6e73; font-size: 13px; margin-bottom: 16px; }
+    .modal .close { float: right; background: none; border: none; font-size: 20px; cursor: pointer; color: #6e6e73; }
+    .task-list { list-style: none; }
+    .task-list li { padding: 6px 0; border-bottom: 1px solid #f2f2f7; font-size: 13px; display: flex; gap: 8px; }
+    .task-status { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+    .task-status.done     { background: #d1f5d3; color: #1a7f37; }
+    .task-status.pending  { background: #fff3d1; color: #8a5a00; }
+    .task-status.skipped  { background: #f2f2f7; color: #6e6e73; }
+    .task-status.deferred { background: #ffe5e5; color: #c00; }
+    .log-entry { background: #f9f9fb; border-radius: 8px; padding: 10px; margin-bottom: 8px; font-size: 13px; }
+    .log-entry .date { color: #6e6e73; font-size: 12px; margin-bottom: 4px; }
+
+    /* ── Bottom bar ── */
+    .bottom-section { flex: 1; }
+    .bottom-section h3 { font-size: 12px; font-weight: 600; color: #6e6e73; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    .today-items { list-style: none; }
+    .today-items li { font-size: 13px; padding: 2px 0; display: flex; gap: 6px; align-items: baseline; }
+    .today-items .time { color: #6e6e73; font-size: 12px; min-width: 40px; }
+
+    /* ── Legend ── */
+    .legend { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+    .legend-label { font-size: 12px; color: #6e6e73; }
+  </style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <span>🗂️</span>
+    <h1>Secretary Dashboard</h1>
+    <span class="date" id="today-label"></span>
+    <div class="spacer"></div>
+    <div class="legend">
+      <div class="legend-dot" style="background:#0071e3"></div><span class="legend-label">行程</span>
+      <div class="legend-dot" style="background:#ff9f0a"></div><span class="legend-label">提醒</span>
+      <div class="legend-dot" style="background:#34c759"></div><span class="legend-label">特殊日期</span>
+    </div>
+    <div class="view-toggle">
+      <button id="btn-month" class="active" onclick="setView('dayGridMonth')">月视图</button>
+      <button id="btn-week" onclick="setView('timeGridWeek')">周视图</button>
+    </div>
+    <div class="dot"></div>
+    <span class="status">本地运行中</span>
+  </header>
+
+  <!-- Main calendar -->
+  <main class="main">
+    <div class="calendar-wrap">
+      <div id="calendar"></div>
+    </div>
+  </main>
+
+  <!-- Sidebar: plans -->
+  <aside class="sidebar">
+    <h2>活跃计划</h2>
+    <div id="plans-list">
+      <p style="color:#6e6e73;font-size:13px;">加载中…</p>
+    </div>
+  </aside>
+
+  <!-- Bottom: today summary -->
+  <footer class="bottom">
+    <div class="bottom-section">
+      <h3>今日待办</h3>
+      <ul class="today-items" id="today-tasks"></ul>
+    </div>
+    <div class="bottom-section">
+      <h3>今日日程</h3>
+      <ul class="today-items" id="today-events"></ul>
+    </div>
+    <div class="bottom-section">
+      <h3>活跃提醒</h3>
+      <ul class="today-items" id="today-timers"></ul>
+    </div>
+  </footer>
+</div>
+
+<!-- Plan detail modal -->
+<div class="modal-bg hidden" id="modal-bg" onclick="closeModal(event)">
+  <div class="modal" id="modal-content">
+    <button class="close" onclick="document.getElementById('modal-bg').classList.add('hidden')">✕</button>
+    <h2 id="modal-title"></h2>
+    <div class="goal" id="modal-goal"></div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+  const API = 'http://localhost:5299/api';
+
+  // ── Heartbeat to allow server auto-stop on browser close ──────────────────
+  setInterval(() => {
+    fetch(API.replace('/api', '') + '/api/heartbeat', { method: 'POST' }).catch(() => {});
+  }, 10000);
+
+  // ── Today label ───────────────────────────────────────────────────────────
+  const now = new Date();
+  document.getElementById('today-label').textContent =
+    now.toLocaleDateString('zh-CN', { year:'numeric', month:'long', day:'numeric', weekday:'long' });
+
+  // ── Calendar ──────────────────────────────────────────────────────────────
+  let calendar;
+  function typeClass(type) {
+    if (type === 'reminder') return 'type-reminder';
+    if (type === 'special_date') return 'type-special_date';
+    return 'type-event';
+  }
+
+  async function fetchCalendarEvents(start, end) {
+    const s = start.toISOString().slice(0,10);
+    const e = end.toISOString().slice(0,10);
+    const res = await fetch(`${API}/calendar?start=${s}&end=${e}`);
+    const rows = await res.json();
+    return rows.map(r => ({
+      id: r.id,
+      title: r.title,
+      start: r.time_start ? `${r.date}T${r.time_start}` : r.date,
+      end:   r.time_end   ? `${r.date}T${r.time_end}`   : undefined,
+      allDay: !r.time_start,
+      classNames: [typeClass(r.event_type)],
+      extendedProps: r,
+    }));
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const el = document.getElementById('calendar');
+    calendar = new FullCalendar.Calendar(el, {
+      initialView: 'dayGridMonth',
+      locale: 'zh-cn',
+      height: 'auto',
+      headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
+      events: async (info, success, failure) => {
+        try {
+          const evts = await fetchCalendarEvents(info.start, info.end);
+          success(evts);
+        } catch(e) { failure(e); }
+      },
+      eventClick(info) {
+        const p = info.event.extendedProps;
+        alert(`${info.event.title}\n${p.date || ''} ${p.time_start||''} ${p.time_end ? '- '+p.time_end : ''}\n${p.description||''}`);
+      },
+    });
+    calendar.render();
+
+    loadPlans();
+    loadToday();
+  });
+
+  function setView(view) {
+    calendar.changeView(view);
+    document.getElementById('btn-month').classList.toggle('active', view === 'dayGridMonth');
+    document.getElementById('btn-week').classList.toggle('active', view === 'timeGridWeek');
+  }
+
+  // ── Plans sidebar ─────────────────────────────────────────────────────────
+  async function loadPlans() {
+    const res = await fetch(`${API}/plans`);
+    const plans = await res.json();
+    const container = document.getElementById('plans-list');
+    if (!plans.length) {
+      container.innerHTML = '<p style="color:#6e6e73;font-size:13px;">暂无活跃计划</p>';
+      return;
+    }
+    container.innerHTML = plans.map(p => `
+      <div class="plan-card" onclick="openPlan(${p.id})">
+        <h3>${escHtml(p.title)}</h3>
+        <div class="meta">
+          ${p.end_date ? '截止 ' + p.end_date : '无截止日'} &nbsp;·&nbsp;
+          优先级 ${['','高','中','低'][p.priority] || p.priority}
+        </div>
+        <div class="progress-bar">
+          <div class="fill" style="width:${p.progress_pct||0}%"></div>
+        </div>
+        <div style="font-size:12px;color:#6e6e73;margin-top:4px;">${p.progress_pct||0}% 完成</div>
+      </div>
+    `).join('');
+  }
+
+  async function openPlan(planId) {
+    const res = await fetch(`${API}/plan/${planId}`);
+    const { plan, tasks, logs } = await res.json();
+
+    document.getElementById('modal-title').textContent = plan.title;
+    document.getElementById('modal-goal').textContent = plan.goal || '';
+
+    // Group tasks by date
+    const byDate = {};
+    tasks.forEach(t => {
+      const d = t.date || '未指定日期';
+      if (!byDate[d]) byDate[d] = [];
+      byDate[d].push(t);
+    });
+
+    let html = '';
+    for (const [date, dtasks] of Object.entries(byDate)) {
+      html += `<div style="margin-bottom:12px"><strong style="font-size:13px;color:#6e6e73">${date}</strong><ul class="task-list">`;
+      dtasks.forEach(t => {
+        html += `<li>
+          <span class="task-status ${t.status}">${statusLabel(t.status)}</span>
+          ${escHtml(t.title)}
+          ${t.note ? `<span style="color:#6e6e73;font-size:12px"> · ${escHtml(t.note)}</span>` : ''}
+        </li>`;
+      });
+      html += '</ul></div>';
+    }
+
+    if (logs.length) {
+      html += '<h3 style="font-size:13px;font-weight:600;color:#6e6e73;margin:16px 0 8px">近期日志</h3>';
+      logs.forEach(l => {
+        html += `<div class="log-entry">
+          <div class="date">${l.log_date}</div>
+          ${l.completed ? `<div>✅ ${escHtml(l.completed)}</div>` : ''}
+          ${l.not_done  ? `<div>⏳ ${escHtml(l.not_done)}</div>` : ''}
+          ${l.reason    ? `<div style="color:#6e6e73">原因：${escHtml(l.reason)}</div>` : ''}
+        </div>`;
+      });
+    }
+
+    document.getElementById('modal-body').innerHTML = html;
+    document.getElementById('modal-bg').classList.remove('hidden');
+  }
+
+  function closeModal(e) {
+    if (e.target === document.getElementById('modal-bg')) {
+      document.getElementById('modal-bg').classList.add('hidden');
+    }
+  }
+
+  function statusLabel(s) {
+    return { pending:'待完成', done:'已完成', skipped:'已跳过', deferred:'已延期' }[s] || s;
+  }
+
+  // ── Today footer ─────────────────────────────────────────────────────────
+  async function loadToday() {
+    const res = await fetch(`${API}/today`);
+    const { events, tasks, timers } = await res.json();
+
+    const evtEl = document.getElementById('today-events');
+    evtEl.innerHTML = events.length
+      ? events.map(e => `<li><span class="time">${e.time_start||'全天'}</span>${escHtml(e.title)}</li>`).join('')
+      : '<li style="color:#6e6e73">今日无日程</li>';
+
+    const taskEl = document.getElementById('today-tasks');
+    taskEl.innerHTML = tasks.length
+      ? tasks.map(t => `<li><span class="time">${t.time_slot||''}</span>${escHtml(t.title)}</li>`).join('')
+      : '<li style="color:#6e6e73">今日无待办</li>';
+
+    const timerEl = document.getElementById('today-timers');
+    timerEl.innerHTML = timers.length
+      ? timers.map(t => `<li>⏰ ${escHtml(t.name)}</li>`).join('')
+      : '<li style="color:#6e6e73">无活跃提醒</li>';
+  }
+
+  function escHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+</body>
+</html>

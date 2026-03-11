@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+*.db
+*.db.bak
+config.json
+schema_version.txt
+event_queue.json
+secretary/
