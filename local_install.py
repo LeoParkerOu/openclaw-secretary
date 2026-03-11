@@ -44,6 +44,7 @@ DEFAULT_CONFIG = {
     "owner_verify": True,
     "holiday_region": "CN",
     "dashboard_port": 5299,
+    "activation_message": "您好，秘书小C为您服务。",
 }
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -154,16 +155,59 @@ def step5_skill():
 
     SKILL_DEST.mkdir()
 
-    # Copy and substitute key markdown files
-    for fname in ('SKILL.md', 'SECRETARY.md', 'PLANNING.md'):
-        src = BASE_DIR / fname
-        dst = SKILL_DEST / fname
-        content = src.read_text(encoding='utf-8')
-        dst.write_text(substitute(content), encoding='utf-8')
-        print(f"  复制并替换路径: {fname}")
+    # ── Generate combined SKILL.md ─────────────────────────────────────────
+    # OpenClaw injects SKILL.md content into AI context but does NOT
+    # automatically load referenced files. So we embed SECRETARY.md
+    # directly into SKILL.md at install time to ensure all tool instructions
+    # and behavior constraints are immediately available to the AI.
+    # PLANNING.md remains separate — the AI is explicitly told to read it
+    # as part of entering planning mode (a deliberate, heavier action).
 
-    # Write a .secretary_base file so tools can find back the base dir
-    (SKILL_DEST / '.base_dir').write_text(str(BASE_DIR))
+    skill_frontmatter = """---
+name: secretary
+description: |
+  Personal AI secretary. Handles scheduling, planning, reminders,
+  progress tracking, and proactive follow-ups. Activate when user
+  mentions events, dates, plans, reminders, or tasks.
+version: 1.0.0
+metadata:
+  openclaw:
+    emoji: "🗂️"
+    requires:
+      bins: ["python3"]
+---
+
+"""
+    secretary_body = substitute(
+        (BASE_DIR / 'SECRETARY.md').read_text(encoding='utf-8')
+    )
+    # Append activation message config hint
+    cfg = json.loads(CONFIG_PATH.read_text()) if CONFIG_PATH.exists() else DEFAULT_CONFIG
+    act_msg = cfg.get('activation_message', '您好，秘书小C为您服务。')
+    activation_section = f"""
+---
+
+## 零、进入秘书模式时的第一句话
+
+每次本次对话中**首次**激活秘书模式时（或用户明确呼叫「秘书」时），
+必须先说出以下激活语，让用户知道秘书模式已开启，再继续处理任务：
+
+> {act_msg}
+
+（激活语可由用户在 config.json 的 `activation_message` 字段自定义。）
+
+---
+"""
+    combined = skill_frontmatter + activation_section + secretary_body
+    (SKILL_DEST / 'SKILL.md').write_text(combined, encoding='utf-8')
+    print("  生成合并 SKILL.md（内嵌 SECRETARY.md）")
+
+    # PLANNING.md: copy with path substitution, AI reads on demand
+    planning_content = substitute(
+        (BASE_DIR / 'PLANNING.md').read_text(encoding='utf-8')
+    )
+    (SKILL_DEST / 'PLANNING.md').write_text(planning_content, encoding='utf-8')
+    print("  复制并替换路径: PLANNING.md")
 
     print(f"  ✅ Skill 已安装到: {SKILL_DEST}")
     print()

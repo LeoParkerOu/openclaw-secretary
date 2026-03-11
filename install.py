@@ -157,6 +157,7 @@ DEFAULT_CONFIG = {
     "owner_verify": True,
     "holiday_region": "CN",
     "dashboard_port": 5299,
+    "activation_message": "您好，秘书小C为您服务。",
 }
 
 
