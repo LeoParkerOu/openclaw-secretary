@@ -166,9 +166,12 @@ def step5_skill():
     skill_frontmatter = """---
 name: secretary
 description: |
-  Personal AI secretary. Handles scheduling, planning, reminders,
-  progress tracking, and proactive follow-ups. Activate when user
-  mentions events, dates, plans, reminders, or tasks.
+  私人AI秘书 / Personal AI Secretary.
+  必须在以下场景读取本文件：行程、日程、日历、会议、提醒、计划、规划、
+  任务、进度、复盘、备忘、重要事件记录。
+  Use when user mentions: scheduling, reminders, planning, tasks,
+  progress tracking, reviews, or important events.
+  IMPORTANT: Always read this skill file before attempting any of the above.
 version: 1.0.0
 metadata:
   openclaw:
