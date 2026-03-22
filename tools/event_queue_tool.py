@@ -1,128 +1,112 @@
 #!/usr/bin/env python3
 """
-event_queue_tool.py — 离线事件缓存管理工具
+event_queue_tool.py — 离线事件缓存工具
+
+OpenClaw 离线期间积压的事件，恢复后合并成一条摘要汇报，不逐条回放。
+在 gateway_start 钩子和每次进入秘书模式时调用 check。
 
 Usage: python3 event_queue_tool.py <action> '<args_json>'
-
-Called by gateway_start hook to detect and report offline events.
 """
 import sys
 import os
-import json
-import subprocess
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(__file__))
-from _common import get_db, db_query, db_exec, ok, err, parse_args, load_config
-
-
-def _send_to_primary_platform(message: str):
-    """Send message to user's primary platform via openclaw."""
-    try:
-        subprocess.run(
-            ["openclaw", "message", "send", "--message", message],
-            capture_output=True, text=True
-        )
-    except FileNotFoundError:
-        # Dev mode: print to stdout instead
-        print(f"[SEND TO PLATFORM] {message}", file=sys.stderr)
-
-
-def _build_offline_summary(pending_events: list) -> str:
-    if not pending_events:
-        return ""
-
-    # Determine offline duration
-    earliest = pending_events[0]['scheduled_at']
-    now = datetime.now().strftime('%Y-%m-%d %H:%M')
-    count = len(pending_events)
-
-    # Categorize
-    high_priority = []
-    others = []
-    for evt in pending_events:
-        payload = {}
-        try:
-            payload = json.loads(evt.get('payload') or '{}')
-        except Exception:
-            pass
-        evt_type = evt.get('event_type', '')
-        context = payload.get('context', '') or evt.get('payload', '')
-        if evt_type == 'timer_heavy':
-            high_priority.append(f"· {evt['scheduled_at'][:16]} — {context[:80]}")
-        else:
-            others.append(f"· {evt['scheduled_at'][:16]} — {context[:80]}")
-
-    lines = [
-        f"您好，我在您离线期间（{earliest[:16]} 至 {now}）积压了 {count} 件事项：",
-        "",
-    ]
-    if high_priority:
-        lines.append("⚠ 重要：")
-        lines.extend(high_priority[:5])
-        lines.append("")
-    if others:
-        lines.append("📋 其余事项：")
-        lines.extend(others[:5])
-        lines.append("")
-
-    if count > 10:
-        lines.append(f"（还有 {count - 10} 件事项未列出）")
-
-    lines.append("建议优先处理：最近的重型提醒任务。")
-    lines.append("如需逐项处理，请回复「处理积压事项」。")
-
-    return "\n".join(lines)
+from _common import get_db, db_query, db_exec, ok, err, parse_args, now_str
 
 
 def check(args: dict):
+    """
+    检查并处理离线事件队列。
+    返回 pending 事件的摘要，AI 应在回复用户前先汇报积压情况。
+    """
     with get_db() as conn:
         pending = db_query(conn,
-            "SELECT * FROM event_queue WHERE status='pending' ORDER BY scheduled_at"
+            "SELECT * FROM event_queue WHERE status='pending' ORDER BY scheduled_at",
         )
+
         if not pending:
-            ok({"pending_count": 0})
-            return
+            return ok({"has_pending": False, "count": 0})
 
-        summary = _build_offline_summary(pending)
-        _send_to_primary_platform(summary)
+        # 合并摘要
+        count = len(pending)
+        types = {}
+        for event in pending:
+            t = event.get('event_type', 'unknown')
+            types[t] = types.get(t, 0) + 1
 
+        # 标记为已处理
+        ids = [e['id'] for e in pending]
+        placeholders = ','.join('?' * len(ids))
         conn.execute(
-            "UPDATE event_queue SET status='processed' WHERE status='pending'"
+            f"UPDATE event_queue SET status='processed' WHERE id IN ({placeholders})",
+            ids
         )
         conn.commit()
 
-    ok({"pending_count": len(pending), "summary_sent": True})
+    summary_parts = []
+    for t, n in types.items():
+        if t == 'timer_heavy':
+            summary_parts.append(f"{n} 个重型定时器触发")
+        elif t == 'timer_light':
+            summary_parts.append(f"{n} 条轻型提醒")
+        else:
+            summary_parts.append(f"{n} 个系统事件")
+
+    ok({
+        "has_pending": True,
+        "count": count,
+        "summary": "离线期间积压了：" + "、".join(summary_parts),
+        "events": pending,
+    })
 
 
-def push(args: dict):
+def enqueue(args: dict):
+    """入队离线事件（离线期间由系统调用）。"""
     event_type = args.get('event_type')
-    scheduled_at = args.get('scheduled_at')
-    if not event_type or not scheduled_at:
-        return err("event_type and scheduled_at are required")
+    scheduled_at = args.get('scheduled_at', now_str())
+    if not event_type:
+        return err("event_type is required")
 
-    payload = args.get('payload', '{}')
+    import json as _json
+    payload = args.get('payload')
     if isinstance(payload, dict):
-        payload = json.dumps(payload, ensure_ascii=False)
+        payload = _json.dumps(payload, ensure_ascii=False)
 
     with get_db() as conn:
         event_id = db_exec(conn,
             """INSERT INTO event_queue (event_type, timer_id, scheduled_at, payload, status)
                VALUES (?,?,?,?,?)""",
-            event_type, args.get('timer_id'), scheduled_at, payload, 'pending'
+            event_type,
+            args.get('timer_id'),
+            scheduled_at,
+            payload,
+            'pending',
         )
-    ok({"event_id": event_id})
+    ok({"event_id": event_id, "event_type": event_type})
+
+
+def clear_processed(args: dict):
+    """清理已处理的历史事件（保持队列整洁）。"""
+    with get_db() as conn:
+        conn.execute("DELETE FROM event_queue WHERE status='processed'")
+        conn.commit()
+    ok({"cleared": True})
+
+
+ACTIONS = {
+    'check': check,
+    'enqueue': enqueue,
+    'push': enqueue,  # 向后兼容别名
+    'clear_processed': clear_processed,
+}
 
 
 def main():
     action, args = parse_args()
-    dispatch = {
-        'check': check,
-        'push': push,
-    }
-    fn = dispatch.get(action)
+    fn = ACTIONS.get(action)
     if not fn:
-        err(f"Unknown action: {action}. Available: {list(dispatch.keys())}")
+        err(f"Unknown action: {action}. Available: {list(ACTIONS.keys())}")
         sys.exit(1)
     fn(args)
 

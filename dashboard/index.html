@@ -4,314 +4,710 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Secretary Dashboard</title>
+
+  <!-- FullCalendar 6 -->
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <!-- FullCalendar 中文语言包 -->
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.11/locales/zh-cn.global.min.js"></script>
+
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f7; color: #1d1d1f; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* ── Layout ── */
-    .app { display: grid; grid-template-rows: 56px 1fr 120px; grid-template-columns: 1fr 320px; min-height: 100vh; }
-    .topbar  { grid-column: 1 / -1; background: #fff; border-bottom: 1px solid #e5e5ea; display: flex; align-items: center; padding: 0 24px; gap: 20px; }
-    .main    { padding: 20px; overflow: auto; }
-    .sidebar { background: #fff; border-left: 1px solid #e5e5ea; padding: 16px; overflow: auto; }
-    .bottom  { grid-column: 1 / -1; background: #fff; border-top: 1px solid #e5e5ea; padding: 12px 24px; display: flex; gap: 24px; align-items: flex-start; }
-
-    /* ── Topbar ── */
-    .topbar h1  { font-size: 18px; font-weight: 600; color: #1d1d1f; }
-    .topbar .date { font-size: 14px; color: #6e6e73; }
-    .topbar .spacer { flex: 1; }
-    .topbar .dot { width: 8px; height: 8px; border-radius: 50%; background: #34c759; }
-    .topbar .status { font-size: 13px; color: #6e6e73; }
-    .view-toggle { display: flex; gap: 4px; }
-    .view-toggle button {
-      padding: 4px 12px; border: 1px solid #d1d1d6; background: #fff; border-radius: 6px;
-      font-size: 13px; cursor: pointer; color: #3a3a3c;
+    :root {
+      --bg: #f5f5f7;
+      --surface: #ffffff;
+      --border: #e5e5ea;
+      --primary: #007aff;
+      --text: #1c1c1e;
+      --text-secondary: #6e6e73;
+      --event-blue: #007aff;
+      --event-green: #34c759;
+      --event-orange: #ff9500;
+      --event-red: #ff3b30;
+      --event-purple: #af52de;
+      --event-gray: #8e8e93;
+      --sidebar-width: 320px;
     }
-    .view-toggle button.active { background: #0071e3; color: #fff; border-color: #0071e3; }
 
-    /* ── Calendar ── */
-    .calendar-wrap { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
-    #calendar { font-size: 13px; }
-    .fc-event { font-size: 12px; border-radius: 4px; padding: 1px 4px; }
-    .fc-event.type-event       { background: #0071e3; border-color: #0071e3; }
-    .fc-event.type-reminder    { background: #ff9f0a; border-color: #ff9f0a; }
-    .fc-event.type-special_date{ background: #34c759; border-color: #34c759; color: #fff; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .header-date {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .header-controls {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn:hover { background: var(--bg); }
+    .btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .btn-group {
+      display: flex;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .btn-group .btn {
+      border: none;
+      border-radius: 0;
+      border-right: 1px solid var(--border);
+    }
+    .btn-group .btn:last-child { border-right: none; }
+
+    /* ── Tab nav ── */
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+      padding: 0 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      padding: 10px 16px;
+      font-size: 13px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    /* ── Main layout ── */
+    .main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Calendar pane ── */
+    .calendar-pane {
+      flex: 1;
+      overflow: hidden;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #calendar {
+      flex: 1;
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    /* FullCalendar customization */
+    .fc { height: 100%; }
+    .fc .fc-toolbar-title { font-size: 16px; font-weight: 600; }
+    .fc .fc-button-primary { background: var(--primary); border-color: var(--primary); }
+    .fc .fc-button-primary:hover { background: #0066cc; border-color: #0066cc; }
+    .fc .fc-button-primary:not(:disabled).fc-button-active { background: #005bb5; border-color: #005bb5; }
+    .fc .fc-daygrid-day-number { font-size: 12px; color: var(--text-secondary); }
+    .fc .fc-daygrid-day.fc-day-today { background: #fff3e0; }
+    .fc .fc-event { font-size: 11px; border-radius: 4px; }
+
+    /* 农历标注 */
+    .lunar-day {
+      font-size: 9px;
+      color: var(--text-secondary);
+      line-height: 1;
+      display: block;
+      margin-top: 1px;
+    }
 
     /* ── Sidebar ── */
-    .sidebar h2  { font-size: 14px; font-weight: 600; color: #6e6e73; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
-    .plan-card   { border: 1px solid #e5e5ea; border-radius: 10px; padding: 12px; margin-bottom: 10px; cursor: pointer; transition: box-shadow .15s; }
-    .plan-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .plan-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
-    .plan-card .meta { font-size: 12px; color: #6e6e73; margin-bottom: 8px; }
-    .progress-bar { height: 4px; background: #e5e5ea; border-radius: 2px; overflow: hidden; }
-    .progress-bar .fill { height: 100%; background: #0071e3; border-radius: 2px; transition: width .3s; }
+    .sidebar {
+      width: var(--sidebar-width);
+      border-left: 1px solid var(--border);
+      background: var(--surface);
+      overflow-y: auto;
+      flex-shrink: 0;
+      padding: 0;
+    }
 
-    /* ── Plan detail modal ── */
-    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-    .modal-bg.hidden { display: none; }
-    .modal { background: #fff; border-radius: 16px; width: 600px; max-height: 80vh; overflow: auto; padding: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
-    .modal h2 { font-size: 18px; margin-bottom: 4px; }
-    .modal .goal { color: #6e6e73; font-size: 13px; margin-bottom: 16px; }
-    .modal .close { float: right; background: none; border: none; font-size: 20px; cursor: pointer; color: #6e6e73; }
-    .task-list { list-style: none; }
-    .task-list li { padding: 6px 0; border-bottom: 1px solid #f2f2f7; font-size: 13px; display: flex; gap: 8px; }
-    .task-status { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
-    .task-status.done     { background: #d1f5d3; color: #1a7f37; }
-    .task-status.pending  { background: #fff3d1; color: #8a5a00; }
-    .task-status.skipped  { background: #f2f2f7; color: #6e6e73; }
-    .task-status.deferred { background: #ffe5e5; color: #c00; }
-    .log-entry { background: #f9f9fb; border-radius: 8px; padding: 10px; margin-bottom: 8px; font-size: 13px; }
-    .log-entry .date { color: #6e6e73; font-size: 12px; margin-bottom: 4px; }
+    .sidebar-section {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
 
-    /* ── Bottom bar ── */
-    .bottom-section { flex: 1; }
-    .bottom-section h3 { font-size: 12px; font-weight: 600; color: #6e6e73; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
-    .today-items { list-style: none; }
-    .today-items li { font-size: 13px; padding: 2px 0; display: flex; gap: 6px; align-items: baseline; }
-    .today-items .time { color: #6e6e73; font-size: 12px; min-width: 40px; }
+    .sidebar-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+    }
 
-    /* ── Legend ── */
-    .legend { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
-    .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
-    .legend-label { font-size: 12px; color: #6e6e73; }
+    /* 目标卡片 */
+    .goal-scope-group { margin-bottom: 12px; }
+    .goal-scope-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    .goal-card {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .goal-card:hover { background: #eaeaec; }
+    .goal-card-title {
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .progress-bar-wrap {
+      height: 4px;
+      background: #d1d1d6;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+    .goal-card-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 5px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    .priority-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 4px;
+    }
+    .priority-1 { background: var(--event-red); }
+    .priority-2 { background: var(--event-orange); }
+    .priority-3 { background: var(--event-gray); }
+
+    /* 今日面板 */
+    .today-item {
+      display: flex;
+      gap: 8px;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+      align-items: flex-start;
+    }
+    .today-item:last-child { border-bottom: none; }
+    .today-item-time {
+      font-size: 11px;
+      color: var(--text-secondary);
+      min-width: 38px;
+      flex-shrink: 0;
+    }
+    .today-item-title { font-size: 13px; }
+    .item-type-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+
+    /* 周总结面板 */
+    .reflection-card {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+    .reflection-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .reflection-week { font-size: 13px; font-weight: 500; }
+    .reflection-date { font-size: 11px; color: var(--text-secondary); }
+    .reflection-snippet {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+    .reflection-detail {
+      display: none;
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.6;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .reflection-card.expanded .reflection-detail { display: block; }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 13px;
+      padding: 20px 0;
+    }
+
+    /* Tab panels */
+    .tab-panel { display: none; height: 100%; }
+    .tab-panel.active { display: flex; }
+
+    /* Loading */
+    .loading { color: var(--text-secondary); font-size: 12px; padding: 8px 0; }
+
+    /* Event colors by type */
+    .event-event { background-color: var(--event-blue) !important; border-color: var(--event-blue) !important; }
+    .event-todo { background-color: var(--event-green) !important; border-color: var(--event-green) !important; }
+    .event-special_date { background-color: var(--event-purple) !important; border-color: var(--event-purple) !important; }
+    .event-reminder { background-color: var(--event-orange) !important; border-color: var(--event-orange) !important; }
   </style>
 </head>
+
 <body>
 
-<div class="app">
+<!-- Header -->
+<header>
+  <div>
+    <h1>🗂️ Secretary Dashboard</h1>
+    <div class="header-date" id="today-display"></div>
+  </div>
+  <div class="header-controls">
+    <div class="btn-group">
+      <button class="btn active" id="btn-month" onclick="switchView('dayGridMonth')">月</button>
+      <button class="btn" id="btn-week" onclick="switchView('timeGridWeek')">周</button>
+    </div>
+    <div class="btn-group">
+      <button class="btn active" id="btn-solar" onclick="setCalendarType('solar')">公历</button>
+      <button class="btn" id="btn-lunar" onclick="setCalendarType('lunar')">农历</button>
+      <button class="btn active" id="btn-all" onclick="setCalendarType('all')">全部</button>
+    </div>
+    <button class="btn" onclick="refreshAll()">↻ 刷新</button>
+  </div>
+</header>
 
-  <!-- Top bar -->
-  <header class="topbar">
-    <span>🗂️</span>
-    <h1>Secretary Dashboard</h1>
-    <span class="date" id="today-label"></span>
-    <div class="spacer"></div>
-    <div class="legend">
-      <div class="legend-dot" style="background:#0071e3"></div><span class="legend-label">行程</span>
-      <div class="legend-dot" style="background:#ff9f0a"></div><span class="legend-label">提醒</span>
-      <div class="legend-dot" style="background:#34c759"></div><span class="legend-label">特殊日期</span>
-    </div>
-    <div class="view-toggle">
-      <button id="btn-month" class="active" onclick="setView('dayGridMonth')">月视图</button>
-      <button id="btn-week" onclick="setView('timeGridWeek')">周视图</button>
-    </div>
-    <div class="dot"></div>
-    <span class="status">本地运行中</span>
-  </header>
-
-  <!-- Main calendar -->
-  <main class="main">
-    <div class="calendar-wrap">
-      <div id="calendar"></div>
-    </div>
-  </main>
-
-  <!-- Sidebar: plans -->
-  <aside class="sidebar">
-    <h2>活跃计划</h2>
-    <div id="plans-list">
-      <p style="color:#6e6e73;font-size:13px;">加载中…</p>
-    </div>
-  </aside>
-
-  <!-- Bottom: today summary -->
-  <footer class="bottom">
-    <div class="bottom-section">
-      <h3>今日待办</h3>
-      <ul class="today-items" id="today-tasks"></ul>
-    </div>
-    <div class="bottom-section">
-      <h3>今日日程</h3>
-      <ul class="today-items" id="today-events"></ul>
-    </div>
-    <div class="bottom-section">
-      <h3>活跃提醒</h3>
-      <ul class="today-items" id="today-timers"></ul>
-    </div>
-  </footer>
+<!-- Tab nav -->
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('calendar')">日历</button>
+  <button class="tab-btn" onclick="switchTab('reflections')">周总结</button>
 </div>
 
-<!-- Plan detail modal -->
-<div class="modal-bg hidden" id="modal-bg" onclick="closeModal(event)">
-  <div class="modal" id="modal-content">
-    <button class="close" onclick="document.getElementById('modal-bg').classList.add('hidden')">✕</button>
-    <h2 id="modal-title"></h2>
-    <div class="goal" id="modal-goal"></div>
-    <div id="modal-body"></div>
+<!-- Main -->
+<div class="main">
+
+  <!-- Calendar tab -->
+  <div class="tab-panel active" id="tab-calendar">
+    <div class="calendar-pane">
+      <div id="calendar"></div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <!-- Today overview -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">今日概览</div>
+        <div id="today-list"><div class="loading">加载中...</div></div>
+      </div>
+
+      <!-- Active goals -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">活跃目标</div>
+        <div id="goals-list"><div class="loading">加载中...</div></div>
+      </div>
+    </div>
   </div>
+
+  <!-- Reflections tab -->
+  <div class="tab-panel" id="tab-reflections">
+    <div style="flex:1; padding:20px; overflow-y:auto;">
+      <div id="reflections-list"><div class="loading">加载中...</div></div>
+    </div>
+  </div>
+
 </div>
 
 <script>
-  const API = 'http://localhost:5299/api';
-
-  // ── Heartbeat to allow server auto-stop on browser close ──────────────────
-  setInterval(() => {
-    fetch(API.replace('/api', '') + '/api/heartbeat', { method: 'POST' }).catch(() => {});
-  }, 10000);
-
-  // ── Today label ───────────────────────────────────────────────────────────
-  const now = new Date();
-  document.getElementById('today-label').textContent =
-    now.toLocaleDateString('zh-CN', { year:'numeric', month:'long', day:'numeric', weekday:'long' });
-
-  // ── Calendar ──────────────────────────────────────────────────────────────
   let calendar;
-  function typeClass(type) {
-    if (type === 'reminder') return 'type-reminder';
-    if (type === 'special_date') return 'type-special_date';
-    return 'type-event';
-  }
+  let calendarType = 'all';
+  let currentEvents = [];
 
-  async function fetchCalendarEvents(start, end) {
-    const s = start.toISOString().slice(0,10);
-    const e = end.toISOString().slice(0,10);
-    const res = await fetch(`${API}/calendar?start=${s}&end=${e}`);
-    const rows = await res.json();
-    return rows.map(r => ({
-      id: r.id,
-      title: r.title,
-      start: r.time_start ? `${r.date}T${r.time_start}` : r.date,
-      end:   r.time_end   ? `${r.date}T${r.time_end}`   : undefined,
-      allDay: !r.time_start,
-      classNames: [typeClass(r.event_type)],
-      extendedProps: r,
-    }));
-  }
+  // ── Init ──────────────────────────────────────────────────────────────────
 
   document.addEventListener('DOMContentLoaded', () => {
-    const el = document.getElementById('calendar');
-    calendar = new FullCalendar.Calendar(el, {
-      initialView: 'dayGridMonth',
-      locale: 'zh-cn',
-      height: 'auto',
-      headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
-      events: async (info, success, failure) => {
-        try {
-          const evts = await fetchCalendarEvents(info.start, info.end);
-          success(evts);
-        } catch(e) { failure(e); }
-      },
-      eventClick(info) {
-        const p = info.event.extendedProps;
-        alert(`${info.event.title}\n${p.date || ''} ${p.time_start||''} ${p.time_end ? '- '+p.time_end : ''}\n${p.description||''}`);
-      },
-    });
-    calendar.render();
-
-    loadPlans();
+    initCalendar();
     loadToday();
+    loadGoals();
+    updateTodayDisplay();
+    startHeartbeat();
   });
 
-  function setView(view) {
-    calendar.changeView(view);
-    document.getElementById('btn-month').classList.toggle('active', view === 'dayGridMonth');
-    document.getElementById('btn-week').classList.toggle('active', view === 'timeGridWeek');
+  function updateTodayDisplay() {
+    const now = new Date();
+    const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+    document.getElementById('today-display').textContent =
+      now.toLocaleDateString('zh-CN', options);
   }
 
-  // ── Plans sidebar ─────────────────────────────────────────────────────────
-  async function loadPlans() {
-    const res = await fetch(`${API}/plans`);
-    const plans = await res.json();
-    const container = document.getElementById('plans-list');
-    if (!plans.length) {
-      container.innerHTML = '<p style="color:#6e6e73;font-size:13px;">暂无活跃计划</p>';
+  // ── Calendar ──────────────────────────────────────────────────────────────
+
+  function initCalendar() {
+    const el = document.getElementById('calendar');
+    calendar = new FullCalendar.Calendar(el, {
+      locale: 'zh-cn',
+      initialView: 'dayGridMonth',
+      headerToolbar: {
+        left: 'prev,next today',
+        center: 'title',
+        right: ''
+      },
+      height: '100%',
+      events: fetchCalendarEvents,
+      eventClassNames: (info) => [`event-${info.event.extendedProps.item_type || 'event'}`],
+      eventContent: (info) => renderEventContent(info),
+      dayCellContent: (info) => renderDayCell(info),
+      eventClick: (info) => showEventDetail(info.event),
+      datesSet: () => {},
+    });
+    calendar.render();
+  }
+
+  async function fetchCalendarEvents(fetchInfo, successCallback, failureCallback) {
+    const start = formatDate(fetchInfo.start);
+    const end = formatDate(fetchInfo.end);
+    try {
+      const res = await fetch(`/api/calendar?start=${start}&end=${end}&calendar_type=${calendarType}`);
+      const data = await res.json();
+      currentEvents = data.events || [];
+      const fcEvents = currentEvents.map(e => ({
+        id: e.id,
+        title: e.title,
+        start: e.time_start ? `${e.date}T${e.time_start}` : e.date,
+        end: e.time_end ? `${e.date}T${e.time_end}` : undefined,
+        allDay: !e.time_start,
+        extendedProps: e,
+      }));
+      successCallback(fcEvents);
+    } catch (err) {
+      failureCallback(err);
+    }
+  }
+
+  function renderEventContent(info) {
+    const e = info.event.extendedProps;
+    const lunar = e.lunar?.display || '';
+    return {
+      html: `<div class="fc-event-title">${info.event.title}</div>${lunar ? `<span class="lunar-day">${lunar}</span>` : ''}`
+    };
+  }
+
+  function renderDayCell(info) {
+    const date = formatDate(info.date);
+    // 从 currentEvents 中找今天的农历
+    const event = currentEvents.find(e => e.date === date && e.lunar?.display);
+    const lunar = event?.lunar?.display || '';
+    const dayNum = info.date.getDate();
+    return {
+      html: `<a class="fc-daygrid-day-number">${dayNum}</a>${lunar ? `<span class="lunar-day">${lunar}</span>` : ''}`
+    };
+  }
+
+  function switchView(viewName) {
+    calendar.changeView(viewName);
+    document.getElementById('btn-month').classList.toggle('active', viewName === 'dayGridMonth');
+    document.getElementById('btn-week').classList.toggle('active', viewName === 'timeGridWeek');
+  }
+
+  function setCalendarType(type) {
+    calendarType = type;
+    ['solar', 'lunar', 'all'].forEach(t => {
+      document.getElementById(`btn-${t}`).classList.toggle('active', t === type);
+    });
+    calendar.refetchEvents();
+  }
+
+  function showEventDetail(event) {
+    const e = event.extendedProps;
+    const parts = [
+      `📅 ${e.date}${e.time_start ? ' ' + e.time_start : ''}${e.time_end ? '–' + e.time_end : ''}`,
+      e.description ? `📝 ${e.description}` : '',
+      e.lunar?.display ? `🌙 农历：${e.lunar.display}` : '',
+      `🏷️ 类型：${e.item_type || 'event'}`,
+      e.recurrence ? `🔁 循环：${e.recurrence}` : '',
+    ].filter(Boolean).join('\n');
+    alert(`${event.title}\n\n${parts}`);
+  }
+
+  // ── Today panel ───────────────────────────────────────────────────────────
+
+  async function loadToday() {
+    try {
+      const res = await fetch('/api/today');
+      const data = await res.json();
+      renderTodayList(data.events || [], data.special_dates || []);
+    } catch (e) {
+      document.getElementById('today-list').innerHTML =
+        '<div class="empty-state">加载失败</div>';
+    }
+  }
+
+  function renderTodayList(events, specials) {
+    const container = document.getElementById('today-list');
+    const all = [...specials.map(e => ({...e, _isSpecial: true})), ...events.filter(e => e.item_type !== 'special_date')]
+      .sort((a, b) => (a.time_start || '00:00').localeCompare(b.time_start || '00:00'));
+
+    if (all.length === 0) {
+      container.innerHTML = '<div class="empty-state">今日暂无安排</div>';
       return;
     }
-    container.innerHTML = plans.map(p => `
-      <div class="plan-card" onclick="openPlan(${p.id})">
-        <h3>${escHtml(p.title)}</h3>
-        <div class="meta">
-          ${p.end_date ? '截止 ' + p.end_date : '无截止日'} &nbsp;·&nbsp;
-          优先级 ${['','高','中','低'][p.priority] || p.priority}
-        </div>
-        <div class="progress-bar">
-          <div class="fill" style="width:${p.progress_pct||0}%"></div>
-        </div>
-        <div style="font-size:12px;color:#6e6e73;margin-top:4px;">${p.progress_pct||0}% 完成</div>
-      </div>
-    `).join('');
-  }
 
-  async function openPlan(planId) {
-    const res = await fetch(`${API}/plan/${planId}`);
-    const { plan, tasks, logs } = await res.json();
-
-    document.getElementById('modal-title').textContent = plan.title;
-    document.getElementById('modal-goal').textContent = plan.goal || '';
-
-    // Group tasks by date
-    const byDate = {};
-    tasks.forEach(t => {
-      const d = t.date || '未指定日期';
-      if (!byDate[d]) byDate[d] = [];
-      byDate[d].push(t);
-    });
-
-    let html = '';
-    for (const [date, dtasks] of Object.entries(byDate)) {
-      html += `<div style="margin-bottom:12px"><strong style="font-size:13px;color:#6e6e73">${date}</strong><ul class="task-list">`;
-      dtasks.forEach(t => {
-        html += `<li>
-          <span class="task-status ${t.status}">${statusLabel(t.status)}</span>
-          ${escHtml(t.title)}
-          ${t.note ? `<span style="color:#6e6e73;font-size:12px"> · ${escHtml(t.note)}</span>` : ''}
-        </li>`;
-      });
-      html += '</ul></div>';
-    }
-
-    if (logs.length) {
-      html += '<h3 style="font-size:13px;font-weight:600;color:#6e6e73;margin:16px 0 8px">近期日志</h3>';
-      logs.forEach(l => {
-        html += `<div class="log-entry">
-          <div class="date">${l.log_date}</div>
-          ${l.completed ? `<div>✅ ${escHtml(l.completed)}</div>` : ''}
-          ${l.not_done  ? `<div>⏳ ${escHtml(l.not_done)}</div>` : ''}
-          ${l.reason    ? `<div style="color:#6e6e73">原因：${escHtml(l.reason)}</div>` : ''}
+    container.innerHTML = all.map(e => {
+      const color = typeColor(e.item_type);
+      const time = e.time_start || (e._isSpecial ? '⭐' : '全天');
+      return `
+        <div class="today-item">
+          <div class="item-type-dot" style="background:${color}"></div>
+          <div class="today-item-time">${time}</div>
+          <div class="today-item-title">${e.title}${e.lunar?.display ? ` <span style="color:var(--text-secondary);font-size:11px">${e.lunar.display}</span>` : ''}</div>
         </div>`;
-      });
+    }).join('');
+  }
+
+  function typeColor(type) {
+    const map = {
+      event: 'var(--event-blue)',
+      todo: 'var(--event-green)',
+      special_date: 'var(--event-purple)',
+      reminder: 'var(--event-orange)',
+    };
+    return map[type] || 'var(--event-gray)';
+  }
+
+  // ── Goals panel ───────────────────────────────────────────────────────────
+
+  async function loadGoals() {
+    try {
+      const res = await fetch('/api/goals?status=active');
+      const data = await res.json();
+      renderGoalsList(data.grouped || {});
+    } catch (e) {
+      document.getElementById('goals-list').innerHTML =
+        '<div class="empty-state">加载失败</div>';
+    }
+  }
+
+  const KNOWN_SCOPES = ['day', 'week', 'month', 'quarter', 'year', 'long_term'];
+  const scopeLabel = {
+    day: '日目标', week: '周目标', month: '月目标',
+    quarter: '季目标', year: '年目标', long_term: '长期目标'
+  };
+
+  function renderGoalsList(grouped) {
+    const container = document.getElementById('goals-list');
+    // 预设 scope 按固定顺序，自定义 scope 按字母序追加
+    const customScopes = Object.keys(grouped)
+      .filter(s => !KNOWN_SCOPES.includes(s) && s !== 'other' && grouped[s].length > 0)
+      .sort();
+    const order = [...KNOWN_SCOPES, ...customScopes, 'other'];
+    let html = '';
+
+    for (const scope of order) {
+      const goals = grouped[scope];
+      if (!goals || goals.length === 0) continue;
+      // 自定义 scope 直接用原始值作为标签
+      const label = scopeLabel[scope] || scope;
+      html += `<div class="goal-scope-group">
+        <div class="goal-scope-label">${label}</div>
+        ${goals.map(g => renderGoalCard(g)).join('')}
+      </div>`;
     }
 
-    document.getElementById('modal-body').innerHTML = html;
-    document.getElementById('modal-bg').classList.remove('hidden');
+    if (!html) {
+      container.innerHTML = '<div class="empty-state">暂无活跃目标</div>';
+      return;
+    }
+    container.innerHTML = html;
   }
 
-  function closeModal(e) {
-    if (e.target === document.getElementById('modal-bg')) {
-      document.getElementById('modal-bg').classList.add('hidden');
+  function renderGoalCard(g) {
+    const pct = g.progress_pct || 0;
+    const deadline = g.end_date ? `截止 ${g.end_date}` : '';
+    return `
+      <div class="goal-card" onclick="openGoalDetail(${g.id})">
+        <div class="goal-card-title">
+          <span class="priority-dot priority-${g.priority || 2}"></span>${g.title}
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" style="width:${pct}%"></div>
+        </div>
+        <div class="goal-card-meta">
+          <span>${pct}%</span>
+          <span>${deadline}</span>
+        </div>
+      </div>`;
+  }
+
+  async function openGoalDetail(goalId) {
+    try {
+      const res = await fetch(`/api/goal/${goalId}`);
+      const data = await res.json();
+      const g = data.goal;
+      const logs = g.logs || [];
+      const logsText = logs.length > 0
+        ? logs.map(l => `  ${l.log_date}: ${l.completed || '(无完成内容)'}`).join('\n')
+        : '  暂无日志';
+      alert(`📋 ${g.title}\n\n进度：${g.progress_pct}%\n范围：${scopeLabel[g.scope] || g.scope}\n状态：${g.status}\n${g.start_date ? '开始：' + g.start_date + '\n' : ''}${g.end_date ? '截止：' + g.end_date + '\n' : ''}\n${g.description ? '说明：' + g.description + '\n\n' : ''}最近日志：\n${logsText}`);
+    } catch (e) {
+      alert('加载目标详情失败');
     }
   }
 
-  function statusLabel(s) {
-    return { pending:'待完成', done:'已完成', skipped:'已跳过', deferred:'已延期' }[s] || s;
+  // ── Reflections tab ───────────────────────────────────────────────────────
+
+  async function loadReflections() {
+    const container = document.getElementById('reflections-list');
+    try {
+      const res = await fetch('/api/weekly_reflections?limit=20');
+      const data = await res.json();
+      renderReflections(data.reflections || []);
+    } catch (e) {
+      container.innerHTML = '<div class="empty-state">加载失败</div>';
+    }
   }
 
-  // ── Today footer ─────────────────────────────────────────────────────────
-  async function loadToday() {
-    const res = await fetch(`${API}/today`);
-    const { events, tasks, timers } = await res.json();
+  function renderReflections(reflections) {
+    const container = document.getElementById('reflections-list');
+    if (reflections.length === 0) {
+      container.innerHTML = '<div class="empty-state">暂无周总结记录</div>';
+      return;
+    }
+    container.innerHTML = reflections.map(r => {
+      const snippet = r.raw_summary
+        ? r.raw_summary.slice(0, 120) + (r.raw_summary.length > 120 ? '…' : '')
+        : (r.execution_patterns || '');
+      const detail = [
+        r.execution_patterns ? `**执行规律**\n${r.execution_patterns}` : '',
+        r.goal_progress ? `**目标进展**\n${r.goal_progress}` : '',
+        r.new_insights ? `**新认知**\n${r.new_insights}` : '',
+        r.next_week_advice ? `**下周建议**\n${r.next_week_advice}` : '',
+        r.user_feedback ? `**用户反馈**\n${r.user_feedback}` : '',
+      ].filter(Boolean).join('\n\n');
 
-    const evtEl = document.getElementById('today-events');
-    evtEl.innerHTML = events.length
-      ? events.map(e => `<li><span class="time">${e.time_start||'全天'}</span>${escHtml(e.title)}</li>`).join('')
-      : '<li style="color:#6e6e73">今日无日程</li>';
-
-    const taskEl = document.getElementById('today-tasks');
-    taskEl.innerHTML = tasks.length
-      ? tasks.map(t => `<li><span class="time">${t.time_slot||''}</span>${escHtml(t.title)}</li>`).join('')
-      : '<li style="color:#6e6e73">今日无待办</li>';
-
-    const timerEl = document.getElementById('today-timers');
-    timerEl.innerHTML = timers.length
-      ? timers.map(t => `<li>⏰ ${escHtml(t.name)}</li>`).join('')
-      : '<li style="color:#6e6e73">无活跃提醒</li>';
+      return `
+        <div class="reflection-card" onclick="toggleReflection(this)">
+          <div class="reflection-card-header">
+            <span class="reflection-week">第 ${r.week_number} 周</span>
+            <span class="reflection-date">${r.week_start} ~ ${r.week_end}</span>
+          </div>
+          <div class="reflection-snippet">${snippet || '点击展开详情'}</div>
+          <div class="reflection-detail">${detail.replace(/\n/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')}</div>
+        </div>`;
+    }).join('');
   }
 
-  function escHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  function toggleReflection(el) {
+    el.classList.toggle('expanded');
+  }
+
+  // ── Tab switching ─────────────────────────────────────────────────────────
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+      const tabs = ['calendar', 'reflections'];
+      btn.classList.toggle('active', tabs[i] === tab);
+    });
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(`tab-${tab}`).classList.add('active');
+
+    if (tab === 'reflections') loadReflections();
+    if (tab === 'calendar') setTimeout(() => calendar.updateSize(), 50);
+  }
+
+  // ── Refresh ───────────────────────────────────────────────────────────────
+
+  function refreshAll() {
+    calendar.refetchEvents();
+    loadToday();
+    loadGoals();
+  }
+
+  // ── Heartbeat ─────────────────────────────────────────────────────────────
+
+  function startHeartbeat() {
+    setInterval(() => fetch('/api/heartbeat').catch(() => {}), 10000);
+  }
+
+  // ── Utils ─────────────────────────────────────────────────────────────────
+
+  function formatDate(date) {
+    const d = new Date(date);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 </script>
+
 </body>
 </html>

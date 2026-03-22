@@ -9,6 +9,7 @@ from datetime import datetime
 
 
 def get_workspace() -> str:
+    """OpenClaw 工作目录，优先读取环境变量。"""
     ws = os.environ.get('OPENCLAW_WORKSPACE')
     if ws:
         return ws
@@ -89,3 +90,12 @@ def today_str() -> str:
 
 def now_str() -> str:
     return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+
+def get_week_number(date_str: str = None) -> str:
+    """返回 YYYY-WW 格式的周编号。"""
+    if date_str:
+        d = datetime.strptime(date_str, '%Y-%m-%d')
+    else:
+        d = datetime.now()
+    return d.strftime('%Y-%W')
