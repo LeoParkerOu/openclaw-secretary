@@ -87,6 +87,18 @@ def get_onboarding_questions(args: dict):
     ok(ONBOARDING_QUESTIONS)
 
 
+def set_config(args: dict):
+    """Set a key in config.json (e.g. onboarding_done, timezone, primary_platform)."""
+    key = args.get('key')
+    value = args.get('value')
+    if key is None:
+        return err("key is required")
+    cfg = load_config()
+    cfg[key] = value
+    save_config(cfg)
+    ok({"key": key, "value": value})
+
+
 def main():
     action, args = parse_args()
     dispatch = {
@@ -95,6 +107,7 @@ def main():
         'capture_owner_id': capture_owner_id,
         'verify_owner': verify_owner,
         'get_onboarding_questions': get_onboarding_questions,
+        'set_config': set_config,
     }
     fn = dispatch.get(action)
     if not fn:

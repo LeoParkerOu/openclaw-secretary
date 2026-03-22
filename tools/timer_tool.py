@@ -20,8 +20,7 @@ def _register_openclaw_cron(name: str, cron_expr: str, message: str) -> bool:
              "--name", name,
              "--cron", cron_expr,
              "--session", "main",
-             "--message", message,
-             "--announce"],
+             "--system-event", message],
             capture_output=True, text=True
         )
         return result.returncode == 0
@@ -38,8 +37,7 @@ def _register_openclaw_cron_once(name: str, trigger_at: str, message: str) -> bo
              "--name", name,
              "--at", trigger_at,
              "--session", "main",
-             "--message", message,
-             "--announce",
+             "--system-event", message,
              "--delete-after-run"],
             capture_output=True, text=True
         )

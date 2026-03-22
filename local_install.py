@@ -184,6 +184,7 @@ metadata:
     secretary_body = substitute(
         (BASE_DIR / 'SECRETARY.md').read_text(encoding='utf-8')
     )
+    persona_body = (BASE_DIR / 'PERSONA.md').read_text(encoding='utf-8')
     # Append activation message config hint
     cfg = json.loads(CONFIG_PATH.read_text()) if CONFIG_PATH.exists() else DEFAULT_CONFIG
     act_msg = cfg.get('activation_message', '您好，秘书小C为您服务。')
@@ -201,9 +202,9 @@ metadata:
 
 ---
 """
-    combined = skill_frontmatter + activation_section + secretary_body
+    combined = skill_frontmatter + activation_section + persona_body + "\n\n---\n\n" + secretary_body
     (SKILL_DEST / 'SKILL.md').write_text(combined, encoding='utf-8')
-    print("  生成合并 SKILL.md（内嵌 SECRETARY.md）")
+    print("  生成合并 SKILL.md（内嵌 PERSONA.md + SECRETARY.md）")
 
     # PLANNING.md: copy with path substitution, AI reads on demand
     planning_content = substitute(
@@ -257,7 +258,8 @@ def main():
     print("✅  安装完成！")
     print()
     print("下一步：")
-    print("  1. 重启 openclaw 守护进程（如果正在运行）")
+    print("  1. 重启 gateway（需带 NO_PROXY 以绕过飞书代理问题）：")
+    print(f"     bash {BASE_DIR}/start_gateway.sh")
     print("  2. 在聊天软件里和 OpenClaw 说话，秘书会自动激活")
     print("  3. 如需打开 Dashboard：")
     print(f"     python3 {BASE_DIR}/tools/dashboard.py")
