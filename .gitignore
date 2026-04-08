@@ -8,3 +8,4 @@ config.json
 schema_version.txt
 event_queue.json
 secretary/
+.idea/
