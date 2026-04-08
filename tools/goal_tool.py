@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """
-goal_tool.py — 目标/计划管理工具
+goal_tool.py — 目标/计划管理工具 v1.2
 
 Usage: python3 goal_tool.py <action> '<args_json>'
+
+v1.2 新增：
+- search_goals: 关键词模糊搜索目标（解决语义识别问题）
 """
 import sys
 import os
@@ -11,6 +14,31 @@ from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(__file__))
 from _common import get_db, db_query, db_exec, ok, err, parse_args, today_str, now_str
+
+
+def search_goals(args: dict):
+    """关键词模糊搜索目标（v1.2 新增）。
+    支持在 title 和 description 中做 LIKE 搜索，解决语义识别问题。
+    AI 收到用户描述的任务名称时，优先用此接口查找，而非依赖字面匹配。
+    """
+    keyword = args.get('keyword', '')
+    status = args.get('status', 'active')
+
+    with get_db() as conn:
+        pattern = f"%{keyword}%"
+        if status == 'all':
+            rows = db_query(conn,
+                """SELECT * FROM goals
+                   WHERE (title LIKE ? OR description LIKE ?)
+                   ORDER BY priority, created_at""",
+                pattern, pattern)
+        else:
+            rows = db_query(conn,
+                """SELECT * FROM goals
+                   WHERE status=? AND (title LIKE ? OR description LIKE ?)
+                   ORDER BY priority, created_at""",
+                status, pattern, pattern)
+    ok({"goals": rows, "count": len(rows), "keyword": keyword})
 
 
 def list_goals(args: dict):
@@ -269,6 +297,7 @@ def suggest_breakdown(args: dict):
 
 
 ACTIONS = {
+    'search_goals': search_goals,
     'list_goals': list_goals,
     'get_goal': get_goal,
     'get_active_summary': get_active_summary,

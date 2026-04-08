@@ -63,6 +63,9 @@ CREATE TABLE IF NOT EXISTS timers (
   context      TEXT,                      -- heavy timer 上下文
   message      TEXT,                      -- light timer 固定消息
   platform     TEXT,                      -- NULL = 使用主平台私聊
+  deliver_to   TEXT,                      -- v1.2: 明确投递目标（会话标识），NULL = 使用 session 默认
+  skip_if_late INTEGER DEFAULT 0,         -- v1.2: 1=错过即丢（例行提醒），0=必须补发（重要事件）
+  ttl_minutes  INTEGER,                   -- v1.2: 有效期分钟数，超过则丢弃，NULL=永不丢
   status       TEXT DEFAULT 'active',     -- 'active'|'paused'|'done'
   last_run     TEXT,
   created_at   TEXT DEFAULT (datetime('now'))

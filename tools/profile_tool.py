@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """
-profile_tool.py — 用户画像 + 身份验证工具
+profile_tool.py — 用户画像 + 身份验证工具 v1.2
 
 Usage: python3 profile_tool.py <action> '<args_json>'
+
+v1.2 新增：
+- get_reminder_targets: 读取提醒投递目标全局配置
+- set_reminder_targets: 设置提醒投递目标全局配置
 """
 import sys
 import os
@@ -18,34 +22,23 @@ def check_access(args: dict):
     """
     综合验证：身份验证 + 私聊保护。
     这是最高优先级的安全检查，每次进入秘书模式前必须调用。
-
-    返回：
-    - {"ok": true, "data": {"pass": true}} — 验证通过
-    - {"ok": false, "error": "group_chat"} — 群聊中的数据库操作请求
-    - {"ok": false, "error": "unauthorized"} — 非 owner 发送者
-    - {"ok": true, "data": {"pass": true, "reason": "onboarding_pending"}} — 首次使用，需 onboarding
     """
     sender_id = args.get('sender_id', '')
     is_group = args.get('is_group', False)
 
     config = load_config()
 
-    # ── 第一优先级：私聊保护 ──────────────────────────────────────────────
-    # 群聊中任何秘书数据库操作一律拒绝
     if is_group:
         return err("group_chat")
 
-    # ── 第二优先级：身份验证 ──────────────────────────────────────────────
     owner_verify = config.get('owner_verify', True)
 
     if not owner_verify:
-        # 单用户私聊场景，跳过验证
         return ok({"pass": True, "note": "owner_verify disabled"})
 
     owner_id = config.get('owner_id')
 
     if not owner_id:
-        # 尚未完成 onboarding，允许通过但标记需要 onboarding
         return ok({"pass": True, "reason": "onboarding_pending"})
 
     if sender_id and sender_id != owner_id:
@@ -73,7 +66,6 @@ def read_profile(args: dict):
             rows = db_query(conn,
                 "SELECT * FROM user_profile WHERE category=? ORDER BY key",
                 category)
-    # 转为易读的 dict 格式
     result = {'hard': {}, 'soft': {}}
     for row in rows:
         result[row['category']][row['key']] = {
@@ -138,10 +130,46 @@ def set_config(args: dict):
 def get_config(args: dict):
     """读取 config.json。"""
     config = load_config()
-    # 不返回敏感信息
     safe_config = {k: v for k, v in config.items() if k not in ('owner_id',)}
     safe_config['owner_configured'] = bool(config.get('owner_id'))
     ok(safe_config)
+
+
+def get_reminder_targets(args: dict):
+    """
+    读取提醒投递目标全局配置。
+    返回用户设置的全局提醒目标，AI 创建提醒时优先使用此配置。
+    """
+    config = load_config()
+    targets = config.get('reminder_targets', [])
+    description = config.get('reminder_targets_description', '')
+    ok({
+        "targets": targets,
+        "description": description,
+        "has_config": len(targets) > 0
+    })
+
+
+def set_reminder_targets(args: dict):
+    """
+    设置提醒投递目标全局配置（需用户确认后调用）。
+    用户说「以后所有提醒发XX」时调用此接口。
+
+    参数：
+    - targets: list[str] — 投递目标列表，如 ["feishu:ou_xxx", "wecom:ww_xxx"]
+    - description: str — 人类可读描述，如「飞书私聊」
+    """
+    targets = args.get('targets', [])
+    description = args.get('description', '')
+
+    if not isinstance(targets, list):
+        return err("targets must be a list")
+
+    config = load_config()
+    config['reminder_targets'] = targets
+    config['reminder_targets_description'] = description
+    save_config(config)
+    ok({"targets": targets, "description": description, "saved": True})
 
 
 ACTIONS = {
@@ -152,6 +180,8 @@ ACTIONS = {
     'capture_owner_id': capture_owner_id,
     'set_config': set_config,
     'get_config': get_config,
+    'get_reminder_targets': get_reminder_targets,
+    'set_reminder_targets': set_reminder_targets,
     # 向后兼容 v1.0 别名
     'verify_owner': check_access,
 }
